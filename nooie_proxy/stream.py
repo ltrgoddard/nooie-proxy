@@ -189,13 +189,13 @@ async def stream(config: Config, target: str) -> None:
         log("connecting to Nooie signalling")
         try:
             async with http.ws_connect(
-                profile.WS_URL,
+                config.ws,
                 headers={
                     "uid": config.uid,
                     "appid": profile.APP_ID,
                     "api_token": config.api_token,
                     "phone_code": config.phone_code,
-                    "Origin": signalling.origin(profile.WS_URL),
+                    "Origin": signalling.origin(config.ws),
                 },
                 heartbeat=20,
             ) as websocket:

@@ -99,12 +99,6 @@ def country() -> str:
     return os.environ.get("NOOIE_COUNTRY_CODE", "44")
 
 
-def region() -> str:
-    """nooie's us servers hold north american accounts, eu the rest."""
-    default = "us" if country().lstrip("+0") == "1" else "eu"
-    return os.environ.get("NOOIE_REGION", default)
-
-
 def output() -> str:
     """the sink: - for stdout, else any url or path pyav can write."""
     target = os.environ.get("NOOIE_OUTPUT", "-")

@@ -18,8 +18,6 @@ from dataclasses import dataclass
 from .profile import (
     APEMAN_RPC_VERSION,
     APEMAN_SALT,
-    POLICY_HOST,
-    POLICY_PORT,
 )
 from .twofish import Twofish
 
@@ -238,12 +236,13 @@ def _tcp_rpc(host: str, port: int, method: str, body: bytes,
     return decode_response(buf)
 
 
-def register(uid: str, timeout: float = 6.0) -> Registration:
+def register(uid: str, policy: str, timeout: float = 6.0) -> Registration:
     """run getsrv + natcheck + PutNatInfo for `uid`; returns a live Registration.
     raises on any step that does not confirm (getsrv/NatOne must answer, and
     PutNatInfo must return field1 == 0 = success)."""
     # 1. getsrv (tcp 9000) -> first nat server.
-    _, _, g = _tcp_rpc(POLICY_HOST, POLICY_PORT, "Getsrv", getsrv_body(uid), timeout)
+    host, port = policy.rsplit(":", 1)
+    _, _, g = _tcp_rpc(host, int(port), "Getsrv", getsrv_body(uid), timeout)
     srv = parse(g[2]) if isinstance(g.get(2), bytes) else {}
     nat = (srv[4].decode(), srv[5])
 

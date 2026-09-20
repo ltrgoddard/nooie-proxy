@@ -15,7 +15,16 @@ from aiortc import RTCIceServer
 
 from . import cache
 from .env import country, credentials, identity, log
-from .profile import API_BASE, APP_ID, APP_SECRET, DEVICE, USER_AGENT
+from .profile import (
+    API_BASE,
+    APP_ID,
+    APP_SECRET,
+    DEVICE,
+    GLOBAL,
+    POLICY,
+    USER_AGENT,
+    WS_URL,
+)
 
 
 @dataclass(frozen=True)
@@ -27,6 +36,9 @@ class Config:
     phone_code: str
     request_uuid: str
     device_id: str = ""
+    web: str = API_BASE
+    ws: str = WS_URL
+    p2p: str = POLICY
     model_id: str = ""
 
     def __repr__(self) -> str:
@@ -37,6 +49,10 @@ class Config:
 def utc_offset_hours() -> int:
     offset = datetime.now().astimezone().utcoffset()
     return int(offset.total_seconds() // 3600) if offset else 0
+
+
+# the region's rest, websocket and p2p policy hosts, as GLOBAL names them.
+HOSTS = ("web", "ws", "p2p")
 
 
 def headers(config: Config | None, request_uuid: str = "") -> dict[str, str]:
@@ -100,10 +116,11 @@ async def request(
     path: str,
     request_headers: dict[str, str],
     method: str = "POST",
+    base: str = API_BASE,
     **kwargs: Any,
 ) -> Any:
     async with http.request(
-        method, f"{API_BASE}{path}", headers=request_headers, **kwargs
+        method, f"{base}{path}", headers=request_headers, **kwargs
     ) as response:
         payload = await response.json(content_type=None)
         status = response.status
@@ -126,6 +143,7 @@ def stored() -> Config | None:
         uid=str(session["uid"]),
         phone_code=identity(),
         request_uuid=str(session["request"]),
+        **{k: str(session[k]) for k in HOSTS if session.get(k)},
     )
 
 
@@ -138,11 +156,22 @@ async def authenticate(
     username, password = credentials()
     phone_code = identity()
     request_uuid = uuid.uuid4().hex
+    where = await request(
+        http,
+        "region lookup",
+        "/account/country",
+        headers(None, request_uuid),
+        method="GET",
+        base=GLOBAL,
+        params={"account": username, "country": country()},
+    )
+    hosts = {k: str(where[k]) for k in HOSTS}
     data = await request(
         http,
         "login",
         "/login/login",
         headers(None, request_uuid),
+        base=hosts["web"],
         json=login_body(username, password, phone_code),
     )
     if not isinstance(data, dict):
@@ -152,12 +181,14 @@ async def authenticate(
         uid=str(data["uid"]),
         phone_code=phone_code,
         request_uuid=request_uuid,
+        **hosts,
     )
     await request(
         http,
         "client registration",
         "/user/put",
         headers(config),
+        base=config.web,
         json=registration_body(config),
     )
     cache.save(
@@ -166,6 +197,7 @@ async def authenticate(
             "api_token": config.api_token,
             "uid": config.uid,
             "request": config.request_uuid,
+            **hosts,
         },
     )
     return config
@@ -208,6 +240,7 @@ async def list_devices(
         "device list",
         "/device/list",
         headers(config),
+        base=config.web,
         method="GET",
         params={"page": 1, "per_page": 100},
     )
@@ -245,6 +278,7 @@ async def create_session(
         "session request",
         "/webrtcsession/user/videocall",
         headers(config),
+        base=config.web,
         json={"device_id": config.device_id},
     )
 
