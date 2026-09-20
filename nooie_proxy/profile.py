@@ -5,10 +5,16 @@ everything the account servers see about the caller comes from one app build
 backend starts rejecting this one, the strings to update all live here.
 """
 
+from .env import load_environment, region
+
 # --- nooie cloud rest api and websocket signalling -------------------------
 
-API_BASE = "https://app.eu.nooie.com/v2"
-WS_URL = "wss://wss.eu.nooie.com/ws"
+# accounts live in one region, and the other rejects their login. the dotenv
+# may name the country, so it has to be read before the region is settled.
+load_environment()
+REGION = region()
+API_BASE = f"https://app.{REGION}.nooie.com/v2"
+WS_URL = f"wss://wss.{REGION}.nooie.com/ws"
 APP_ID = "4adcd2139621b1ef"
 APP_SECRET = "9e03f0b14adcd2139621b1ef984b2ac0"
 USER_AGENT = "Nooie_IOS_3.7.0"
@@ -31,5 +37,5 @@ DEVICE = {
 
 APEMAN_SALT = "ApEMaNSNoOiE"
 APEMAN_RPC_VERSION = b"5.0.0"
-POLICY_HOST = "policy-eu.nooie.com"
+POLICY_HOST = f"policy-{REGION}.nooie.com"
 POLICY_PORT = 9000
