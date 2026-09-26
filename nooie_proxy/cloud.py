@@ -256,6 +256,22 @@ async def list_devices(
     ]
 
 
+async def events(
+    http: aiohttp.ClientSession, config: Config, device: str
+) -> list[dict[str, Any]]:
+    """the camera's latest alerts, newest first, as the app's inbox has them."""
+    data = await request(
+        http,
+        "event list",
+        "/msg/device-list",
+        headers(config),
+        base=config.web,
+        method="GET",
+        params={"uuid": device, "time": int(time.time()), "rows": 5},
+    )
+    return [item for item in data or [] if isinstance(item, dict)]
+
+
 async def select_camera(devices: list[dict[str, Any]]) -> dict[str, Any]:
     wanted = os.environ.get("NOOIE_DEVICE_ID", "")
     cameras = [

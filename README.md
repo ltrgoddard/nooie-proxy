@@ -52,6 +52,11 @@ value in the file.
 of every camera on the account. The proxy also stores a UUID beside the
 dotenv to identify this install. Do not edit or delete it.
 
+`nooie-proxy --events` watches every camera on the account and prints a
+line for each new alert: the UUID, the kind (`motion` or `cry`), and the
+time in Unix seconds. It reads the alert list that the app's inbox shows,
+every five seconds, and needs no call to the camera.
+
 ## Sessions
 
 The proxy stores its Nooie session in `sessions.json` beside the identity and

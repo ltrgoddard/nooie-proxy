@@ -1,3 +1,5 @@
+line-length = 79
+
 # The codebase prefers explicit, readable constructions over these two
 # stylistic rewrites (a compact space-joined field list, and joining
 # expected multi-line test fixtures line by line).
