@@ -12,7 +12,9 @@ from .stream import stream
 
 async def serve() -> None:
     target = output()
-    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as http:
+    async with aiohttp.ClientSession(
+        timeout=aiohttp.ClientTimeout(total=30)
+    ) as http:
         config = await cloud.login(http)
         # publish our nat mapping on nooie's p2p network so the camera can
         # reach us; the registration holds its udp socket open.
@@ -27,7 +29,9 @@ async def serve() -> None:
 
 async def list_devices() -> None:
     """print every camera on the account so NOOIE_DEVICE_ID can be chosen."""
-    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as http:
+    async with aiohttp.ClientSession(
+        timeout=aiohttp.ClientTimeout(total=30)
+    ) as http:
         _, devices = await cloud.signed_in(http)
     print("uuid\tname\tmodel\tonline")
     for device in devices:

@@ -6,7 +6,9 @@ from aiortc.rtcrtpparameters import RTCRtpCodecParameters
 
 from nooie_proxy.rtc import AAC, Verbatim, opens_a_group
 
-H264 = RTCRtpCodecParameters(mimeType="video/H264", clockRate=90000, payloadType=126)
+H264 = RTCRtpCodecParameters(
+    mimeType="video/H264", clockRate=90000, payloadType=126
+)
 
 
 def unit(*nals: bytes) -> bytes:

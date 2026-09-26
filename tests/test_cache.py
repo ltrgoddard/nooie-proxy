@@ -43,7 +43,9 @@ class CacheTests(unittest.TestCase):
         shared = cache.path().with_name("shared.json")
         with patch.dict(os.environ, {"NOOIE_SESSIONS": str(shared)}):
             cache.save("nooie", {"api_token": "t"})
-        self.assertEqual(json.loads(shared.read_text()), {"nooie": {"api_token": "t"}})
+        self.assertEqual(
+            json.loads(shared.read_text()), {"nooie": {"api_token": "t"}}
+        )
 
 
 if __name__ == "__main__":

@@ -101,7 +101,9 @@ class Timed(MediaStreamTrack):
         # audio arrives true, and its sample cadence has to stay unbroken
         # for a decoder, so it is moved bodily onto the same origin.
         stamp = now if self.kind == "video" else frame.pts + self.shift
-        frame.dts = frame.pts = self.last = max(self.last + TICK[self.kind], stamp)
+        frame.dts = frame.pts = self.last = max(
+            self.last + TICK[self.kind], stamp
+        )
         return frame
 
 
@@ -115,7 +117,9 @@ class Remux:
     """
 
     def __init__(self, target: str, ending: Ending) -> None:
-        self.container = av.open(aligned(target), "w", format=MUXER, options=MUX)
+        self.container = av.open(
+            aligned(target), "w", format=MUXER, options=MUX
+        )
         self.streams: dict[Any, Any] = {}
         self.pumps: list[asyncio.Task[None]] = []
         # set when a track ends or the sink dies, so the call unwinds instead
@@ -124,7 +128,9 @@ class Remux:
 
     def add(self, track: Any) -> None:
         """declare a track, which every one must be before the first packet."""
-        self.streams[track] = self.video() if track.kind == "video" else self.audio()
+        self.streams[track] = (
+            self.video() if track.kind == "video" else self.audio()
+        )
 
     def video(self) -> Any:
         # a mux stream builds no codec context at all, so the muxer reads
@@ -269,7 +275,9 @@ async def place_call(
             # it also has to see `connected` at once: waiting out the whole
             # deadline here holds back the switch and the keyframe for the
             # rest of it, and the camera gives up on a call left that long.
-            message = await receive(websocket, min(1.0, deadline - time.monotonic()))
+            message = await receive(
+                websocket, min(1.0, deadline - time.monotonic())
+            )
             if message is False:
                 raise RuntimeError("signalling closed during the handshake")
             found = signalling.matching_signal(
@@ -298,7 +306,9 @@ async def place_call(
                 # candidates the camera trickles after its answer still land,
                 # which is exactly the case a hard nat depends on.
         if not connected.is_set():
-            raise RuntimeError(f"no usable answer within {ANSWER_TIMEOUT} seconds")
+            raise RuntimeError(
+                f"no usable answer within {ANSWER_TIMEOUT} seconds"
+            )
 
         await send(signalling.switch(config, session, call))
         await receive(websocket, 2)
@@ -336,7 +346,9 @@ async def place_call(
             )
 
 
-async def receive(websocket: aiohttp.ClientWebSocketResponse, timeout: float) -> Any:
+async def receive(
+    websocket: aiohttp.ClientWebSocketResponse, timeout: float
+) -> Any:
     """the next decoded frame, None on timeout or noise, False once closed."""
     try:
         async with asyncio.timeout(max(0.1, timeout)):

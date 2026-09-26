@@ -62,7 +62,9 @@ def headers(config: Config | None, request_uuid: str = "") -> dict[str, str]:
     if config is not None:
         signed += f"{config.uid}{config.api_token}"
         request_uuid = config.request_uuid
-    digest = hmac.new(APP_SECRET.encode(), signed.encode(), hashlib.sha256).hexdigest()
+    digest = hmac.new(
+        APP_SECRET.encode(), signed.encode(), hashlib.sha256
+    ).hexdigest()
     common = {
         "Accept": "application/json",
         "Content-Type": "application/json",
@@ -77,7 +79,9 @@ def headers(config: Config | None, request_uuid: str = "") -> dict[str, str]:
     return common | {"uid": config.uid, "api-token": config.api_token}
 
 
-def login_body(username: str, password: str, phone_code: str) -> dict[str, Any]:
+def login_body(
+    username: str, password: str, phone_code: str
+) -> dict[str, Any]:
     # the app reports a different phone_brand here than at registration.
     return {
         "account": username,
@@ -134,7 +138,9 @@ async def request(
 def stored() -> Config | None:
     """the session the last run left behind, if it left one."""
     session = cache.load("nooie")
-    if not all(session.get(field) for field in ("api_token", "uid", "request")):
+    if not all(
+        session.get(field) for field in ("api_token", "uid", "request")
+    ):
         return None
     return Config(
         api_token=str(session["api_token"]),
@@ -145,7 +151,9 @@ def stored() -> Config | None:
     )
 
 
-async def authenticate(http: aiohttp.ClientSession, *, fresh: bool = False) -> Config:
+async def authenticate(
+    http: aiohttp.ClientSession, *, fresh: bool = False
+) -> Config:
     """sign in and register this install, without settling on a camera."""
     if not fresh and (config := stored()) is not None:
         return config
@@ -223,7 +231,9 @@ async def login(http: aiohttp.ClientSession) -> Config:
     config, devices = await signed_in(http)
     camera = await select_camera(devices)
     log(f"selected camera {camera['type']}")
-    return replace(config, device_id=str(camera["uuid"]), model_id=str(camera["type"]))
+    return replace(
+        config, device_id=str(camera["uuid"]), model_id=str(camera["type"])
+    )
 
 
 async def list_devices(
@@ -265,7 +275,9 @@ async def select_camera(devices: list[dict[str, Any]]) -> dict[str, Any]:
     raise RuntimeError("several cameras match; set NOOIE_DEVICE_ID")
 
 
-async def create_session(http: aiohttp.ClientSession, config: Config) -> dict[str, Any]:
+async def create_session(
+    http: aiohttp.ClientSession, config: Config
+) -> dict[str, Any]:
     return await request(
         http,
         "session request",
