@@ -1,3 +1,5 @@
+import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -37,12 +39,11 @@ class CacheTests(unittest.TestCase):
 
         self.assertIsNone(cloud.stored())
 
-    def test_a_forgotten_session_is_gone(self) -> None:
-        cache.save("nooie", {"api_token": "t", "uid": "u", "request": "r"})
-
-        cache.forget("nooie")
-
-        self.assertEqual(cache.load("nooie"), {})
+    def test_a_shared_file_holds_the_session(self) -> None:
+        shared = cache.path().with_name("shared.json")
+        with patch.dict(os.environ, {"NOOIE_SESSIONS": str(shared)}):
+            cache.save("nooie", {"api_token": "t"})
+        self.assertEqual(json.loads(shared.read_text()), {"nooie": {"api_token": "t"}})
 
 
 if __name__ == "__main__":

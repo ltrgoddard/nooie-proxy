@@ -154,9 +154,7 @@ def compact_candidate(candidate: LocalIceCandidate) -> str:
     }
     if kind not in priorities:
         raise ValueError(f"unsupported local ICE candidate type: {kind!r}")
-    foundation = zlib.crc32(
-        f"{fields[0][len('candidate:'):]}:{kind}".encode()
-    )
+    foundation = zlib.crc32(f"{fields[0][len('candidate:') :]}:{kind}".encode())
     output = [
         f"candidate:{foundation}",
         fields[1],

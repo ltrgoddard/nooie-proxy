@@ -7,6 +7,9 @@ refused, and being refused costs one sign-in, which is what signing in
 unconditionally costs anyway.
 
 kept beside the identity, at the same permissions: it holds session secrets.
+NOOIE_SESSIONS names a file to share instead. a sign-in ends every other
+session on the account, so installs that each signed in would evict one
+another; sharing one file makes it one session for all of them.
 """
 
 import json
@@ -19,7 +22,8 @@ from .env import state_dir
 
 
 def path() -> Path:
-    return state_dir() / "sessions.json"
+    shared = os.environ.get("NOOIE_SESSIONS")
+    return Path(shared) if shared else state_dir() / "sessions.json"
 
 
 def held() -> dict[str, Any]:
@@ -43,7 +47,3 @@ def save(name: str, session: dict[str, Any]) -> None:
     fresh.touch(mode=0o600)
     fresh.write_text(json.dumps(held() | {name: session}))
     os.replace(fresh, target)
-
-
-def forget(name: str) -> None:
-    save(name, {})

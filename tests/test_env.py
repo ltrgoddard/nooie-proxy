@@ -48,9 +48,7 @@ class DotenvTests(unittest.TestCase):
         self.assertEqual(loaded["C"], "x y")
 
     def test_trailing_comments_and_export_are_understood(self) -> None:
-        loaded = self.load(
-            "# a whole-line comment\n\nexport A=44  # the region\nB=\n"
-        )
+        loaded = self.load("# a whole-line comment\n\nexport A=44  # the region\nB=\n")
 
         self.assertEqual(loaded["A"], "44")
         self.assertEqual(loaded["B"], "")
@@ -73,9 +71,12 @@ class IdentityTests(unittest.TestCase):
     def test_persisted_identity_is_stable_and_private(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "state"
-            with patch.dict(
-                os.environ, {"XDG_CONFIG_HOME": str(root), "HOME": str(root)}
-            ), patch("sys.platform", "linux"):
+            with (
+                patch.dict(
+                    os.environ, {"XDG_CONFIG_HOME": str(root), "HOME": str(root)}
+                ),
+                patch("sys.platform", "linux"),
+            ):
                 first, second = identity(), identity()
                 path = state_dir() / "identity"
 

@@ -45,6 +45,7 @@ value in the file.
 | `NOOIE_USERNAME`, `NOOIE_PASSWORD` | — | the account login |
 | `NOOIE_COUNTRY_CODE` | `44` | your mobile phone's country code |
 | `NOOIE_DEVICE_ID` | — | the camera to use when the account has more than one |
+| `NOOIE_SESSIONS` | — | a session file to share between installs, which then sign in once between them |
 | `NOOIE_OUTPUT` | `-` | `-` for stdout, or any path or URL that PyAV writes |
 
 `nooie-proxy --list-devices` prints the UUID, name, model, and online state

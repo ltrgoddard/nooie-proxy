@@ -29,8 +29,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 TRANSPORT_CC = RTCRtpHeaderExtensionParameters(
     id=4,
-    uri="http://www.ietf.org/id/"
-    "draft-holmer-rmcat-transport-wide-cc-extensions-01",
+    uri="http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01",
 )
 AAC = RTCRtpCodecParameters(
     mimeType="audio/AAC",
@@ -55,8 +54,7 @@ def opens_a_group(access_unit: bytes) -> bool:
     the muxer is told which packets a group of pictures may start on.
     """
     return any(
-        nal and nal[0] & 0x1F in (5, 7)
-        for nal in access_unit.split(b"\x00\x00\x01")
+        nal and nal[0] & 0x1F in (5, 7) for nal in access_unit.split(b"\x00\x00\x01")
     )
 
 
@@ -115,9 +113,7 @@ def _pass_media_through() -> None:
 def _enable_rsa_dtls() -> None:
     def generate(cls: type[RTCCertificate]) -> RTCCertificate:
         key = rsa.generate_private_key(public_exponent=65537, key_size=1024)
-        name = x509.Name(
-            [x509.NameAttribute(x509.NameOID.COMMON_NAME, "WebRTC")]
-        )
+        name = x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, "WebRTC")])
         now = datetime.now(UTC)
         certificate = (
             x509.CertificateBuilder()

@@ -71,9 +71,7 @@ class TimedTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(steps, [960] * 3)
 
     async def test_frames_arriving_within_a_tick_stay_distinct(self) -> None:
-        stamps = await self.stamps(
-            Track("video", VIDEO, [0, 0, 0]), [1.0, 1.0, 1.0]
-        )
+        stamps = await self.stamps(Track("video", VIDEO, [0, 0, 0]), [1.0, 1.0, 1.0])
 
         step = TICK["video"]
         self.assertEqual(stamps, [90000, 90000 + step, 90000 + 2 * step])

@@ -25,9 +25,7 @@ class Call:
 
     def next_message_id(self, *, call_scoped: bool = False) -> str:
         self.message_id += 1
-        prefix = (
-            self.call_id if call_scoped else f"iOS_{str(uuid.uuid4()).upper()}"
-        )
+        prefix = self.call_id if call_scoped else f"iOS_{str(uuid.uuid4()).upper()}"
         return f"{prefix}_{self.message_id}"
 
 
@@ -62,9 +60,9 @@ def dumps(value: Any) -> str:
                 return "[\n\n" + indent + "]"
             fields = [child + render(entry, level + 1) for entry in item]
             return "[\n" + ",\n".join(fields) + "\n" + indent + "]"
-        return json.dumps(
-            item, ensure_ascii=False, separators=(",", ":")
-        ).replace("/", r"\/")
+        return json.dumps(item, ensure_ascii=False, separators=(",", ":")).replace(
+            "/", r"\/"
+        )
 
     return render(value, 0)
 
@@ -145,13 +143,9 @@ def candidate(
     )
 
 
-def switch(
-    config: Config, session: dict[str, Any], call: Call
-) -> dict[str, Any]:
+def switch(config: Config, session: dict[str, Any], call: Call) -> dict[str, Any]:
     # "tme" is the camera's own spelling; it ignores the corrected key.
-    return envelope(
-        config, session, call, "Switch", {"Action": 0}, time_key="tme"
-    )
+    return envelope(config, session, call, "Switch", {"Action": 0}, time_key="tme")
 
 
 def close(config: Config, session: dict[str, Any], call: Call) -> dict[str, Any]:

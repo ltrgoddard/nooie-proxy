@@ -60,13 +60,13 @@ def block_encrypt(data: bytes, key: bytes) -> bytes:
     """twofish-256-ecb (pkcs#7) — enciphers one sail rpc body."""
     tf = Twofish(key)
     padded = _pkcs7(data)
-    return b"".join(tf.encrypt(padded[i:i + 16]) for i in range(0, len(padded), 16))
+    return b"".join(tf.encrypt(padded[i : i + 16]) for i in range(0, len(padded), 16))
 
 
 def block_decrypt(blob: bytes, key: bytes) -> bytes:
     """inverse of block_encrypt: twofish-256-ecb then strip pkcs#7."""
     tf = Twofish(key)
-    out = b"".join(tf.decrypt(blob[i:i + 16]) for i in range(0, len(blob), 16))
+    out = b"".join(tf.decrypt(blob[i : i + 16]) for i in range(0, len(blob), 16))
     return _unpkcs7(out)
 
 
@@ -102,9 +102,16 @@ def build_rpc(method: str, trans_id: int, body: bytes, rpc_type: int = 1) -> byt
     """frame one request: 4-byte BE total length + ReqHeader nanopb (twofish body
     in field 11). the length prefix counts itself (4 + len(header))."""
     enc = block_encrypt(body, sail_key(method, trans_id))
-    hdr = (_v(1, 23) + _s(3, APEMAN_RPC_VERSION) + _s(4, method.encode())
-           + _v(5, trans_id) + _v(8, 1) + _v(9, rpc_type) + _s(11, enc)
-           + _v(14, 0))
+    hdr = (
+        _v(1, 23)
+        + _s(3, APEMAN_RPC_VERSION)
+        + _s(4, method.encode())
+        + _v(5, trans_id)
+        + _v(8, 1)
+        + _v(9, rpc_type)
+        + _s(11, enc)
+        + _v(14, 0)
+    )
     return struct.pack(">I", 4 + len(hdr)) + hdr
 
 
@@ -165,12 +172,19 @@ def nat_body(uid: str) -> bytes:
     return _v(1, 2) + _s(3, uid.encode()) + _s(4, b"")
 
 
-def putnatinfo_body(uid: str, nattype: int, lan_ip: str, lan_port: int,
-                    wan_ip: str, wan_port: int) -> bytes:
+def putnatinfo_body(
+    uid: str, nattype: int, lan_ip: str, lan_port: int, wan_ip: str, wan_port: int
+) -> bytes:
     """PutNatInfo body: the nat envelope + a field-6 natinfo submessage
     {1: 0, 7: nattype, 8: lan_ip, 9: lan_port, 11: wan_ip, 13: wan_port}."""
-    sub = (_v(1, 0) + _v(7, nattype) + _s(8, lan_ip.encode()) + _v(9, lan_port)
-           + _s(11, wan_ip.encode()) + _v(13, wan_port))
+    sub = (
+        _v(1, 0)
+        + _v(7, nattype)
+        + _s(8, lan_ip.encode())
+        + _v(9, lan_port)
+        + _s(11, wan_ip.encode())
+        + _v(13, wan_port)
+    )
     return _v(1, 2) + _s(3, uid.encode()) + _s(4, b"") + _s(6, sub)
 
 
@@ -215,8 +229,9 @@ def _tid() -> int:
     return random.randint(1, 0xFFFF)
 
 
-def _tcp_rpc(host: str, port: int, method: str, body: bytes,
-             timeout: float = 6.0) -> tuple[str, int, dict]:
+def _tcp_rpc(
+    host: str, port: int, method: str, body: bytes, timeout: float = 6.0
+) -> tuple[str, int, dict]:
     with socket.create_connection((host, port), timeout) as s:
         s.sendall(build_rpc(method, _tid(), body))
         buf, size = b"", MAX_FRAME

@@ -20,9 +20,7 @@ def state_dir() -> Path:
     if sys.platform == "darwin":
         root = Path.home() / "Library" / "Application Support"
     else:
-        root = Path(
-            os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))
-        )
+        root = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config")))
     return root / APP_NAME
 
 

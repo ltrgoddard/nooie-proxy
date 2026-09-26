@@ -62,9 +62,7 @@ def headers(config: Config | None, request_uuid: str = "") -> dict[str, str]:
     if config is not None:
         signed += f"{config.uid}{config.api_token}"
         request_uuid = config.request_uuid
-    digest = hmac.new(
-        APP_SECRET.encode(), signed.encode(), hashlib.sha256
-    ).hexdigest()
+    digest = hmac.new(APP_SECRET.encode(), signed.encode(), hashlib.sha256).hexdigest()
     common = {
         "Accept": "application/json",
         "Content-Type": "application/json",
@@ -147,9 +145,7 @@ def stored() -> Config | None:
     )
 
 
-async def authenticate(
-    http: aiohttp.ClientSession, *, fresh: bool = False
-) -> Config:
+async def authenticate(http: aiohttp.ClientSession, *, fresh: bool = False) -> Config:
     """sign in and register this install, without settling on a camera."""
     if not fresh and (config := stored()) is not None:
         return config
@@ -207,16 +203,17 @@ async def signed_in(
     http: aiohttp.ClientSession,
 ) -> tuple[Config, list[dict[str, Any]]]:
     """a session that answers, and the camera list that proved it."""
-    reusing = stored() is not None
-    try:
-        config = await authenticate(http)
-        return config, await list_devices(http, config)
-    except RuntimeError:
-        if not reusing:
-            raise
-        # a stored session that has gone stale looks exactly like this.
-        log("the stored Nooie session was refused; signing in again")
-        cache.forget("nooie")
+    tried = None
+    # a shared session another install renewed since the last try is worth
+    # one more attempt before signing in, which would evict that install.
+    while (config := stored()) is not None and config.api_token != tried:
+        tried = config.api_token
+        try:
+            return config, await list_devices(http, config)
+        except RuntimeError:
+            # a stored session that has gone stale looks exactly like this.
+            log("the stored Nooie session was refused")
+    log("signing in to Nooie")
     config = await authenticate(http, fresh=True)
     return config, await list_devices(http, config)
 
@@ -226,9 +223,7 @@ async def login(http: aiohttp.ClientSession) -> Config:
     config, devices = await signed_in(http)
     camera = await select_camera(devices)
     log(f"selected camera {camera['type']}")
-    return replace(
-        config, device_id=str(camera["uuid"]), model_id=str(camera["type"])
-    )
+    return replace(config, device_id=str(camera["uuid"]), model_id=str(camera["type"]))
 
 
 async def list_devices(
@@ -270,9 +265,7 @@ async def select_camera(devices: list[dict[str, Any]]) -> dict[str, Any]:
     raise RuntimeError("several cameras match; set NOOIE_DEVICE_ID")
 
 
-async def create_session(
-    http: aiohttp.ClientSession, config: Config
-) -> dict[str, Any]:
+async def create_session(http: aiohttp.ClientSession, config: Config) -> dict[str, Any]:
     return await request(
         http,
         "session request",
