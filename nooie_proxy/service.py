@@ -50,7 +50,7 @@ async def list_devices() -> None:
 
 
 # what the app's inbox calls each alert. the rest print as their number.
-KINDS = {8: "motion", 13: "cry"}
+KINDS = {8: "motion", 9: "sound", 13: "cry"}
 # how often to ask. an alert reaches the list only after the camera has
 # uploaded its snapshot, so asking faster than this buys little.
 POLL = 5
