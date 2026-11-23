@@ -5,13 +5,23 @@ import sys
 
 import aiohttp
 
-from . import apeman, cloud
-from .env import load_environment, log, output
+from . import apeman, cloud, legacy
+from .env import load_environment, log, output, transport
 from .stream import stream
+
+
+def _should_fallback(message: str) -> bool:
+    """true when webrtc failed in a way that indicates a legacy-only camera."""
+    return (
+        "no usable answer within" in message
+        or "session request failed" in message
+        or "camera rejected the call" in message
+    )
 
 
 async def serve() -> None:
     target = output()
+    mode = transport()
     async with aiohttp.ClientSession(
         timeout=aiohttp.ClientTimeout(total=30)
     ) as http:
@@ -26,7 +36,22 @@ async def serve() -> None:
         # well paste into an issue.
         masked = registration.wan_ip.rsplit(".", 1)[0] + ".x"
         log(f"p2p registered from {masked}")
-        await stream(config, target)
+        if mode == "legacy":
+            await legacy.stream(config, registration, target)
+            return
+        try:
+            await stream(config, target)
+        except RuntimeError as error:
+            if (
+                mode != "auto"
+                or not config.hb_domain
+                or not config.hb_port
+                or not config.secret
+                or not _should_fallback(str(error))
+            ):
+                raise
+            log(f"webrtc failed ({error}); falling back to legacy p2p")
+            await legacy.stream(config, registration, target)
 
 
 async def list_devices() -> None:

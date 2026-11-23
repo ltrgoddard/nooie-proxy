@@ -103,3 +103,13 @@ def output() -> str:
     """the sink: - for stdout, else any url or path pyav can write."""
     target = os.environ.get("NOOIE_OUTPUT", "-")
     return "pipe:1" if target == "-" else target
+
+
+def transport() -> str:
+    """media transport: auto (webrtc with legacy p2p fallback), webrtc, legacy."""
+    value = os.environ.get("NOOIE_TRANSPORT", "auto").strip().lower()
+    if value not in {"auto", "webrtc", "legacy"}:
+        raise SystemExit(
+            f"NOOIE_TRANSPORT must be auto, webrtc or legacy (got {value!r})"
+        )
+    return value

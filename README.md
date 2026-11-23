@@ -47,6 +47,7 @@ value in the file.
 | `NOOIE_DEVICE_ID` | — | the camera to use when the account has more than one |
 | `NOOIE_SESSIONS` | — | a session file to share between installs, which then sign in once between them |
 | `NOOIE_OUTPUT` | `-` | `-` for stdout, or any path or URL that PyAV writes |
+| `NOOIE_TRANSPORT` | `auto` | `auto` (WebRTC with legacy P2P fallback), `webrtc`, or `legacy` |
 
 `nooie-proxy --list-devices` prints the UUID, name, model, and online state
 of every camera on the account. The proxy also stores a UUID beside the
@@ -98,7 +99,9 @@ Two independent handshakes precede each call, and each one has a module.
 | `sdp` | the compact Nooie SDP and ICE dialect, in both directions |
 | `signalling` | the WebSocket envelopes and the answer matching |
 | `rtc` | the aiortc patches: AAC, passthrough, RSA DTLS at 1200 bytes, ICE sizes |
-| `stream` | places the call and muxes the tracks |
+| `stream` | places the WebRTC call and muxes the tracks |
+| `enet` | minimal pure-Python ENet 1.3 client for legacy cameras |
+| `legacy` | legacy Apeman P2P + ENet stream and MPEG-TS muxer |
 | `env` | the dotenv, the install identity, and the credentials |
 | `cache` | the stored sessions, so a restart does not sign in again |
 | `profile` | the app build the proxy presents itself as |

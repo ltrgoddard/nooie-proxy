@@ -12,6 +12,7 @@ import hashlib
 import random
 import socket
 import struct
+import time
 from contextlib import suppress
 from dataclasses import dataclass
 
@@ -70,6 +71,22 @@ def block_decrypt(blob: bytes, key: bytes) -> bytes:
     return _unpkcs7(out)
 
 
+def block_decrypt_cbc(blob: bytes, tf: Twofish) -> bytes:
+    """twofish-256-cbc (zero iv) over whole 16-byte blocks; tail left clear."""
+    whole = len(blob) & ~0xF
+    if whole == 0:
+        return blob
+    out = bytearray(whole)
+    prev = bytes(16)
+    for i in range(0, whole, 16):
+        ct = blob[i : i + 16]
+        pt = tf.decrypt(ct)
+        for j in range(16):
+            out[i + j] = pt[j] ^ prev[j]
+        prev = ct
+    return bytes(out) + blob[whole:]
+
+
 # --- rpc framing (protobuf ReqHeader + twofish body) ------------------------
 
 # every apeman rpc rides a 4-byte big-endian total-length prefix (which counts
@@ -98,13 +115,32 @@ def _s(tag: int, val: bytes) -> bytes:
     return _uv((tag << 3) | 2) + _uv(len(val)) + val
 
 
-def build_rpc(method: str, trans_id: int, body: bytes, rpc_type: int = 1) -> bytes:
+def build_rpc(
+    method: str,
+    trans_id: int,
+    body: bytes,
+    rpc_type: int = 1,
+    *,
+    field14: int = 0,
+    code: int | None = None,
+    encrypt_body: bool = True,
+) -> bytes:
     """frame one request: 4-byte BE total length + ReqHeader nanopb (twofish body
     in field 11). the length prefix counts itself (4 + len(header))."""
-    enc = block_encrypt(body, sail_key(method, trans_id))
-    hdr = (_v(1, 23) + _s(3, APEMAN_RPC_VERSION) + _s(4, method.encode())
-           + _v(5, trans_id) + _v(8, 1) + _v(9, rpc_type) + _s(11, enc)
-           + _v(14, 0))
+    payload = (
+        block_encrypt(body, sail_key(method, trans_id))
+        if encrypt_body and body
+        else body
+    )
+    hdr = (
+        _v(1, 23)
+        + _s(3, APEMAN_RPC_VERSION)
+        + _s(4, method.encode())
+        + _v(5, trans_id)
+    )
+    if code is not None:
+        hdr += _v(6, code)
+    hdr += _v(8, 1) + _v(9, rpc_type) + _s(11, payload) + _v(14, field14)
     return struct.pack(">I", 4 + len(hdr)) + hdr
 
 
@@ -292,3 +328,140 @@ def register(uid: str, policy: str, timeout: float = 6.0) -> Registration:
     if p.get(1) != 0:
         raise RuntimeError(f"apeman PutNatInfo failed: {p}")
     return Registration(uid, nat, lan_ip, lan_port, wan_ip, wan_port1, nattype, udp)
+
+
+@dataclass(frozen=True)
+class PunchResult:
+    lan_ip: str
+    local_port: int
+    peer_ip: str
+    peer_port: int
+
+
+def p2p_init_body(
+    uid: str,
+    device_id: str,
+    lan_ip: str,
+    local_port: int,
+    token: str,
+    schema: str,
+) -> bytes:
+    """P2pInit body: authType=2, userName=uid, sUuid, localIp/Port, jwt claims."""
+    return (
+        _v(2, 2)
+        + _s(3, uid.encode())
+        + _s(4, b"")
+        + _s(5, device_id.encode())
+        + _s(7, lan_ip.encode())
+        + _v(9, local_port)
+        + _s(11, token.encode())
+        + _s(12, schema.encode())
+    )
+
+
+def _decode_rpc_full(frame: bytes) -> tuple[str, int, int | None, int, dict]:
+    hdr = parse(frame[4:] if len(frame) > 4 else frame)
+    raw_method = hdr.get(4, b"")
+    method = (
+        raw_method.decode(errors="replace")
+        if isinstance(raw_method, bytes)
+        else str(raw_method)
+    )
+    tid = int(hdr.get(5, 0))
+    code = hdr.get(6)
+    rpc_type = int(hdr.get(9, 0))
+    body_enc = hdr.get(11, b"")
+    body: dict = {}
+    if isinstance(body_enc, bytes) and body_enc:
+        try:
+            body = parse(block_decrypt(body_enc, sail_key(method, tid)))
+        except ValueError:
+            body = parse(body_enc)
+    return method, tid, code, rpc_type, body
+
+
+def punch(
+    uid: str,
+    token: str,
+    schema: str,
+    registration: Registration,
+    device_id: str,
+    hb_domain: str,
+    hb_port: int,
+    timeout: float = 5.0,
+) -> PunchResult:
+    """run P2pInit -> P2pInfo -> P2pConn against a legacy camera.
+
+    returns the local and remote udp endpoints once both sides have confirmed
+    the hole-punch, with the punch socket closed so enet can bind the exact
+    same local port.
+    """
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((registration.lan_ip, 0))
+        local_port = sock.getsockname()[1]
+        sock.settimeout(timeout)
+
+        body = p2p_init_body(
+            uid, device_id, registration.lan_ip, local_port, token, schema
+        )
+        sock.sendto(
+            build_rpc("P2pInit", _tid(), body, field14=1),
+            (hb_domain, hb_port),
+        )
+
+        p2p_info: dict | None = None
+        for _ in range(5):
+            raw, _ = sock.recvfrom(4096)
+            method, _, code, _, pb = _decode_rpc_full(raw)
+            if method == "P2pInfo":
+                if code not in (None, 0):
+                    raise RuntimeError(f"apeman P2pInit rejected: code={code}")
+                if isinstance(pb.get(5), bytes):
+                    p2p_info = parse(pb[5])
+                    break
+        if not p2p_info:
+            raise RuntimeError("apeman P2pInit: no P2pInfo received")
+
+        cam_wan_ip = p2p_info[2].decode()
+        cam_wan_port = int(p2p_info[3])
+        cam_lan_ip = p2p_info[5].decode()
+        cam_lan_port = int(p2p_info[7])
+        sec_key = p2p_info[9]
+
+        # prefer direct lan when behind the same nat, otherwise punch wan.
+        primary = (
+            (cam_lan_ip, cam_lan_port)
+            if cam_wan_ip == registration.wan_ip
+            else (cam_wan_ip, cam_wan_port)
+        )
+        pkt = build_rpc("P2pConn", _tid(), _s(1, sec_key), field14=1)
+        for _ in range(2):
+            sock.sendto(pkt, primary)
+
+        deadline = time.monotonic() + timeout
+        while (remaining := deadline - time.monotonic()) > 0:
+            sock.settimeout(remaining)
+            raw, addr = sock.recvfrom(4096)
+            if addr[0] not in (cam_lan_ip, cam_wan_ip):
+                continue
+            m2, tid2, _, rpc_type2, _ = _decode_rpc_full(raw)
+            if m2 == "P2pConn":
+                if rpc_type2 == 1:
+                    reply = build_rpc(
+                        "P2pConn",
+                        tid2,
+                        b"",
+                        rpc_type=2,
+                        field14=0,
+                        code=0,
+                        encrypt_body=False,
+                    )
+                    sock.sendto(reply, addr)
+                return PunchResult(
+                    registration.lan_ip, local_port, addr[0], addr[1]
+                )
+        raise RuntimeError("timed out waiting for P2pConn from camera")
+    finally:
+        sock.close()
