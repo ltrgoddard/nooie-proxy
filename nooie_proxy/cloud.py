@@ -3,6 +3,7 @@
 import base64
 import hashlib
 import hmac
+import json
 import os
 import time
 import uuid
@@ -40,6 +41,9 @@ class Config:
     ws: str = WS_URL
     p2p: str = POLICY
     model_id: str = ""
+    secret: str = ""
+    hb_domain: str = ""
+    hb_port: int = 0
 
     def __repr__(self) -> str:
         # holds the api token: never let a traceback or a log line print it.
@@ -232,8 +236,27 @@ async def login(http: aiohttp.ClientSession) -> Config:
     camera = await select_camera(devices)
     log(f"selected camera {camera['type']}")
     return replace(
-        config, device_id=str(camera["uuid"]), model_id=str(camera["type"])
+        config,
+        device_id=str(camera["uuid"]),
+        model_id=str(camera["type"]),
+        secret=str(camera.get("secret", "")),
+        hb_domain=str(camera.get("hb_domain", "")),
+        hb_port=int(camera.get("hb_port") or 0),
     )
+
+
+def p2p_claims(api_token: str) -> tuple[str, str]:
+    """extract the legacy p2p (token, schema) claims from the jwt api_token."""
+    parts = api_token.split(".")
+    if len(parts) < 2:
+        raise RuntimeError("api_token is not a JWT")
+    payload = parts[1] + "=" * (-len(parts[1]) % 4)
+    claims = json.loads(base64.urlsafe_b64decode(payload))
+    token = str(claims.get("t_id", ""))
+    schema = str(claims.get("sch", ""))
+    if not token or not schema:
+        raise RuntimeError("api_token is missing legacy p2p claims")
+    return token, schema
 
 
 async def list_devices(
